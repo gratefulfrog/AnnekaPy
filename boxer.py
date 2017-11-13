@@ -39,7 +39,7 @@ def iboxN(n):
         source.append(words)
     for candidate in itertools.product(*source):
         if all(w in words for w in transpose(candidate)):
-            print(candidate)
+            print(candidate,tuple(transpose(candidate)))
             return True
         else:
             count+=1
