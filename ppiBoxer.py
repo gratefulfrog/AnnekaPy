@@ -7,10 +7,11 @@
 #mutlithreaded version seems slower than single trheading???
 
 from functools import reduce
+from decimal import Decimal
 import itertools,time
-
 import threading
-import queue
+
+nbThreads = 4
 
 def validateSolution(wIndexLis):
     #print('validate solution : wIndexLis :', wIndexLis)
@@ -18,7 +19,6 @@ def validateSolution(wIndexLis):
     try:
         for i in range(N):
             wiDict[reduce(lambda l,r:l+r,[wVec[j][i] for j in wIndexLis])]
-        #[testTranspose(wVec[i]) for i in wIndexLis]
         return [wVec[i] for i in wIndexLis]
     except KeyError:
         return None
@@ -32,7 +32,7 @@ def transpose(wlis):
 
 class seeker(threading.Thread):
     def __init__(self,name,foundEvt, solIt,size):
-        threading.Thread.__init__(self)
+        threading.Thread.__init__(self,daemon=True)
         self.name = name
         self.foundEvt = foundEvt
         self.solutionIterator = solIt
@@ -40,17 +40,10 @@ class seeker(threading.Thread):
         #print(self.name,'starting')
 
     def run(self):
+        global found
         count = 0
         try:
             for tuple in self.solutionIterator:
-                count +=1
-                if count%modLoop == 0:
-                    if self.foundEvt.is_set():
-                        return
-                    print(self.name,
-                          ': {:,}'.format(count),'explored', '{:,}'.format(self.size-count),
-                          'remaining', '  Percent solution space explored :',
-                          100*count/self.size)
                 res = validateSolution(tuple)
                 if res:
                     print(self.name,': Solution :',[(wiDict[w],w) for w in res])
@@ -58,9 +51,17 @@ class seeker(threading.Thread):
                     print(self.name, ': Transpose :',[(wiDict[w],w) for w in trans])
                     self.foundEvt.set()
                     return
+                count +=1
+                if count%modLoop == 0:
+                    print(self.name,
+                          ': {:.2e}'.format(count),'explored', '{:.2e}'.format(self.size-count),
+                          'remaining', '  Percent solution space explored :',
+                          ': {:.2e}'.format(100*count/self.size),
+                          '%' )
         except Exception as e:
             print(e)
             self.foundEvt.set()
+            # self.foundEvt.set()
             return
         print(self.name,': failed...')
 
@@ -157,12 +158,30 @@ modLoop = 1_000_000
     
 def showSolution(solutionArray):
     size = reduce(lambda x,y:x*y,map(len,solutionArray))
-    print('Solution Space Size : ', '{:,}'.format(size),'reduced to :', 100*size/(pow(len(wVec),N)),'% of brute force space')
-    for i in solutionArray[-1]:
+    print('Solution Space Size : ', '{:.2e}'.format(size),'reduced to :', ': {:.2e}'.format(100*size/(pow(len(wVec),N))),'% of brute force space')
+    for i in [set(x) for x in spread(list(solutionArray[-1]),nbThreads)]:
         #print(i)
-        createSeeker(itertools.product(*solutionArray[:-1],[i]),size)
-    for i in range(threadCounter):
-        threads[i].join()
+        createSeeker(itertools.product(*solutionArray[:-1],i),reduce(lambda x,y:x*y,map(len,solutionArray[:-1]+[i])))
+    foundEvent.wait()
+    """
+    for t in threads:
+        t.join()
+        print(t.name,'ended.')
+    """
+    
+def spread (lis,n):
+    l = len(lis)
+    r = l%n
+    d = l//n
+    res=[]
+    s = 0
+    for i in range(n):
+        offset = 1 if r else 0
+        end = s + d + offset
+        res.append(lis[s:end])
+        s =end
+        r-=1
+    return res
 
 def unionize2GetIndices(setOfChars,pos):
     u = set()
@@ -188,13 +207,13 @@ def getCP(tup):
 
 foundEvent = threading.Event()
 lk = threading.Lock()
-threads = []
+#threads = []
 threadCounter=0
 
 def createSeeker(solutionIerator,sz):
     global threadCounter
     t = seeker('s-'+str(threadCounter),foundEvent,solutionIerator,sz)
-    threads.append(t)
+    #threads.append(t)
     t.start()
     threadCounter+=1
 
@@ -203,14 +222,17 @@ def run(n):
     
 if __name__ == '__main__':
     import sys
-    if len(sys.argv)==2:
-        n = int(sys.argv[1])
-        start = time.time()
-        print('Setting up the data Structures for a size :', n, 'search...')
-        run(n)
-        print('Elapsed time :','{:,}'.format(round(time.time()-start,2)), 'seconds')
-    else:
+    if len(sys.argv)==1 :
         print('length arguments missing...')
+        print('$ ./ppiBoxer.py depth [nbThreads]')
+        sys.exit()
+    if len(sys.argv)==3:
+        nbThreads = int(sys.argv[2])
+    n = int(sys.argv[1])
+    start = time.time()
+    print('Setting up the data Structures for a size :', n, 'search...')
+    run(n)
+    print('Elapsed time :','{:,}'.format(round(time.time()-start,2)), 'seconds')
 
     
     
