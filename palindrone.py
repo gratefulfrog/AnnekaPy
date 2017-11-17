@@ -102,9 +102,19 @@ def boxWords(n, file='words.txt'):
             word=w.strip()
             if len(word) == n:
                 updateDataStructs(word)
-    getConstraintArrays()
+    for ind in pSet:
+        print(wVec[ind])
+    #parPalin()
+    #getConstraintArrays()
 
-
+def parPalin():
+    for (i,j) in itertools.product(pSet,pSet):
+        if wVec[i][0] == wVec[j][1] and wVec[j][0] == wVec[i][1]:
+            print(wVec[i],wVec[j])
+                
+    
+pSet = set()
+    
 def updateDataStructs(word):
     """
     update wVec:   vector of words of the correct length n index->word
@@ -115,12 +125,23 @@ def updateDataStructs(word):
     global wVec
     global wiDict
     global cVec
+    global pSet
     index = len(wVec)
     wVec.append(word)
     wiDict[word]=index
     for i in range(len(word)):
         addCP((word[i],i),index)
         cVec[i].add(word[i])
+    if isPalindrone(word):
+        pSet.add(index)
+
+def isPalindrone(word):
+    if len(word)==0:
+        return True
+    elif word[0] != word[-1]:
+        return False
+    else:
+        return isPalindrone(word[1:-1])
 
 def getConstraintArrays():
     """
@@ -171,7 +192,6 @@ def showSolution(solutionArray):
     
 def spread (lis,n):
     l = len(lis)
-    print('spreading :',l,'over',n)
     r = l%n
     d = l//n
     res=[]
@@ -232,7 +252,7 @@ if __name__ == '__main__':
     n = int(sys.argv[1])
     start = time.time()
     print('Setting up the data Structures for a size :', n, 'search...')
-    run(n)
+    boxWords(n)
     print('Elapsed time :','{:,}'.format(round(time.time()-start,2)), 'seconds')
 
     
